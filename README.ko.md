@@ -8,6 +8,8 @@ macOS용 디스플레이 감마/톤 커브 조절기입니다. 측색기 없이 
 
 macOS 12(Monterey) 이상, x86_64/arm64 모두 지원합니다.
 
+![Gamma Forge 스크린샷](docs/screenshot.png)
+
 ## 설치
 
 x86_64/arm64 유니버설 바이너리를 [Releases](https://github.com/wooooooooook/display-gamma-forge/releases)에 올려 두었습니다. [install.sh](install.sh)가 최신 버전을 받고 checksum을 검사하도록 했습니다.

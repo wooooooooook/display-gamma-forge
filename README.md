@@ -8,6 +8,8 @@ Not an always-on app — it's a tool that generates a color profile. Quitting th
 
 Supports macOS 12 (Monterey) or later, both x86_64 and arm64.
 
+![Gamma Forge screenshot](docs/screenshot.png)
+
 ## Install
 
 An x86_64/arm64 universal binary is published on [Releases](https://github.com/wooooooooook/display-gamma-forge/releases). [install.sh](install.sh) downloads the latest version and verifies its checksum.

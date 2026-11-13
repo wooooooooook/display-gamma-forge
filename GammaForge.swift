@@ -25,7 +25,7 @@ import UniformTypeIdentifiers
 
 // MARK: - 다국어 (시스템 언어 자동 감지)
 
-private let isKorean = Locale.current.language.languageCode?.identifier == "ko"
+private let isKorean = Locale.current.languageCode == "ko"
 private func L(_ ko: String, _ en: String) -> String { isKorean ? ko : en }
 
 // MARK: - ICC 파일 읽기/쓰기
