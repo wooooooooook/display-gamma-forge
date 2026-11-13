@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Swift version
+        run: swift --version
+
+      - name: Build arm64
+        run: swiftc -target arm64-apple-macos13 -parse-as-library -O GammaForge.swift -o GammaForge-arm64
+
+      - name: Build x86_64
+        run: swiftc -target x86_64-apple-macos13 -parse-as-library -O GammaForge.swift -o GammaForge-x86_64
+
+      - name: Merge into universal binary
+        run: |
+          lipo -create -output GammaForge GammaForge-arm64 GammaForge-x86_64
+          chmod +x GammaForge
+          lipo -info GammaForge
+
+      - name: Package & checksum
+        run: |
+          tar -czf GammaForge-macos-universal.tar.gz GammaForge
+          shasum -a 256 GammaForge-macos-universal.tar.gz > GammaForge-macos-universal.tar.gz.sha256
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            GammaForge-macos-universal.tar.gz
+            GammaForge-macos-universal.tar.gz.sha256
+          generate_release_notes: true
