@@ -427,15 +427,15 @@ struct PatternView: View {
     var body: some View {
         Canvas { ctx, size in
             let w = size.width, h = size.height / 4
-            let rows: [(y: Double, values: [Int])] = [
+            let rows: [(y: CGFloat, values: [Int])] = [
                 (0, Array(stride(from: 0, through: 255, by: 16)) + [255]),   // 전체 계단
                 (h * 2, Array(stride(from: 0, through: 48, by: 4))),         // 어두운 영역 계단
                 (h * 3, Array(stride(from: 207, through: 255, by: 4)))       // 밝은 영역 계단
             ]
             for r in rows {
-                let pw = w / Double(r.values.count)
+                let pw = w / CGFloat(r.values.count)
                 for (i, v) in r.values.enumerated() {
-                    let rect = CGRect(x: pw * Double(i), y: r.y, width: pw + 1, height: h)
+                    let rect = CGRect(x: pw * CGFloat(i), y: r.y, width: pw + 1, height: h)
                     ctx.fill(Path(rect), with: .color(Color(.sRGB, white: Double(v) / 255, opacity: 1)))
                 }
             }
