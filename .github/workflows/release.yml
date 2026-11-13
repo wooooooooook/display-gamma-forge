@@ -18,10 +18,10 @@ jobs:
         run: swift --version
 
       - name: Build arm64
-        run: swiftc -target arm64-apple-macos13 -parse-as-library -O GammaForge.swift -o GammaForge-arm64
+        run: swiftc -target arm64-apple-macos12 -parse-as-library -O GammaForge.swift -o GammaForge-arm64
 
       - name: Build x86_64
-        run: swiftc -target x86_64-apple-macos13 -parse-as-library -O GammaForge.swift -o GammaForge-x86_64
+        run: swiftc -target x86_64-apple-macos12 -parse-as-library -O GammaForge.swift -o GammaForge-x86_64
 
       - name: Merge into universal binary
         run: |

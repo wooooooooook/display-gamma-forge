@@ -23,6 +23,11 @@ import CoreGraphics
 import CryptoKit
 import UniformTypeIdentifiers
 
+// MARK: - 다국어 (시스템 언어 자동 감지)
+
+private let isKorean = Locale.current.language.languageCode?.identifier == "ko"
+private func L(_ ko: String, _ en: String) -> String { isKorean ? ko : en }
+
 // MARK: - ICC 파일 읽기/쓰기
 
 struct ICCProfile {
@@ -263,14 +268,15 @@ final class Tuner: ObservableObject {
     func loadProfiles() {
         guard displayID != 0 else { return }
         let current = currentProfile()
-        currentName = current?.descText ?? "(읽을 수 없음)"
+        currentName = current?.descText ?? L("(읽을 수 없음)", "(unreadable)")
         if let found = findFactoryProfile(matching: current) {
             let (factory, file) = found
-            setBase(factory, label: "\(factory.descText ?? file)  (공장 프로파일: \(file))")
+            setBase(factory, label: "\(factory.descText ?? file)  (\(L("공장 프로파일", "factory profile")): \(file))")
         } else if let cur = current {
-            setBase(cur, label: "\(cur.descText ?? "?")  (공장 프로파일을 못 찾아 현재 선택된 프로파일 사용)")
+            setBase(cur, label: "\(cur.descText ?? "?")  \(L("(공장 프로파일을 못 찾아 현재 선택된 프로파일 사용)", "(factory profile not found, using current profile)"))")
         } else {
-            status = "프로파일을 읽지 못했어요. '기준 ICC 직접 선택…'으로 지정해 주세요."
+            status = L("프로파일을 읽지 못했어요. '기준 ICC 직접 선택…'으로 지정해 주세요.",
+                       "Couldn't read a profile. Use 'Choose Base ICC…' to pick one.")
         }
         checkMatch(current)
     }
@@ -288,7 +294,7 @@ final class Tuner: ObservableObject {
         panel.directoryURL = URL(fileURLWithPath: "/Library/ColorSync/Profiles/Displays")
         guard panel.runModal() == .OK, let url = panel.url,
               let data = try? Data(contentsOf: url), let p = ICCProfile(bytes: [UInt8](data)) else { return }
-        setBase(p, label: "\(p.descText ?? url.lastPathComponent)  (직접 선택: \(url.lastPathComponent))")
+        setBase(p, label: "\(p.descText ?? url.lastPathComponent)  (\(L("직접 선택", "manually selected")): \(url.lastPathComponent))")
         checkMatch()
     }
 
@@ -324,7 +330,8 @@ final class Tuner: ObservableObject {
         }
         let err = CGSetDisplayTransferByTable(displayID, UInt32(Tuner.N), &r, &g, &b)
         if err != .success {
-            status = "감마 테이블 적용 실패 (CGError \(err.rawValue)). '밝기 자동 조절'이 켜져 있다면 꺼 보세요."
+            status = L("감마 테이블 적용 실패 (CGError \(err.rawValue)). '밝기 자동 조절'이 켜져 있다면 꺼 보세요.",
+                       "Failed to apply gamma table (CGError \(err.rawValue)). If 'Automatically adjust brightness' is on, try turning it off.")
         }
     }
 
@@ -341,15 +348,16 @@ final class Tuner: ObservableObject {
     }
 
     var summary: String {
-        String(format: "감마 %.2f | 게인 R%.3f G%.3f B%.3f | 채널 감마 R%.2f G%.2f B%.2f",
+        String(format: L("감마 %.2f | 게인 R%.3f G%.3f B%.3f | 채널 감마 R%.2f G%.2f B%.2f",
+                          "Gamma %.2f | Gain R%.3f G%.3f B%.3f | Channel Gamma R%.2f G%.2f B%.2f"),
                target, gain[0], gain[1], gain[2], shadow[0], shadow[1], shadow[2])
     }
 
     @discardableResult
     func save() -> Bool {
-        guard var p = base else { status = "기준 프로파일이 없어요."; return false }
+        guard var p = base else { status = L("기준 프로파일이 없어요.", "No base profile set."); return false }
         let name = outName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { status = "프로파일 이름을 입력해 주세요."; return false }
+        guard !name.isEmpty else { status = L("프로파일 이름을 입력해 주세요.", "Enter a profile name."); return false }
 
         var vcgt: [UInt8] = ICCProfile.ascii4("vcgt")
         vcgt += [0, 0, 0, 0]
@@ -372,11 +380,11 @@ final class Tuner: ObservableObject {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             try Data(bytes).write(to: url)
-            status = "저장 완료: \(url.path)"
+            status = L("저장 완료: \(url.path)", "Saved: \(url.path)")
             NSWorkspace.shared.activateFileViewerSelecting([url])
             return true
         } catch {
-            status = "저장 실패: \(error.localizedDescription)"
+            status = L("저장 실패: \(error.localizedDescription)", "Save failed: \(error.localizedDescription)")
             return false
         }
     }
@@ -385,9 +393,11 @@ final class Tuner: ObservableObject {
         guard save() else { return }
         let name = outName.trimmingCharacters(in: .whitespaces)
         let alert = NSAlert()
-        alert.messageText = "저장했어요"
-        alert.informativeText = "앱을 종료하면 화면이 원래 설정으로 돌아가요.\n시스템 설정 › 디스플레이 › 색상 프로필에서 '\(name)'을 선택하면 지금 본 결과가 적용돼요.\n(같은 이름을 덮어썼다면 다른 프로파일을 한 번 선택했다가 다시 선택하세요.)"
-        alert.addButton(withTitle: "종료하고 디스플레이 설정 열기")
+        alert.messageText = L("저장했어요", "Saved")
+        alert.informativeText = L(
+            "앱을 종료하면 화면이 원래 설정으로 돌아가요.\n시스템 설정 › 디스플레이 › 색상 프로필에서 '\(name)'을 선택하면 지금 본 결과가 적용돼요.\n(같은 이름을 덮어썼다면 다른 프로파일을 한 번 선택했다가 다시 선택하세요.)",
+            "The screen returns to its original setting when the app quits.\nSelect '\(name)' in System Settings › Displays › Color Profile to apply what you just saw.\n(If you overwrote the same name, pick a different profile once, then select it again.)")
+        alert.addButton(withTitle: L("종료하고 디스플레이 설정 열기", "Quit and Open Display Settings"))
         alert.runModal()
         if let u = URL(string: "x-apple.systempreferences:com.apple.Displays-Settings.extension") {
             NSWorkspace.shared.open(u)
@@ -456,55 +466,59 @@ struct ContentView: View {
         let k = coarse ? 5.0 : 1.0
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Picker("모니터", selection: $t.displayID) {
+                Picker(L("모니터", "Monitor"), selection: $t.displayID) {
                     ForEach(t.displays) { d in Text(d.name).tag(d.id) }
                 }
                 .frame(maxWidth: 320)
                 Spacer()
-                Button("다시 확인") { t.loadProfiles() }
-                Button("기준 ICC 직접 선택…") { t.loadBaseFromFile() }
+                Button(L("다시 확인", "Recheck")) { t.loadProfiles() }
+                Button(L("기준 ICC 직접 선택…", "Choose Base ICC…")) { t.loadBaseFromFile() }
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("저장 기준: \(t.baseName)")
-                Text("모니터 고유 감마(TRC): \(String(format: "%.3f", t.nativeGamma))   ·   현재 선택된 프로파일: \(t.currentName)")
+                Text(L("저장 기준: \(t.baseName)", "Base for saving: \(t.baseName)"))
+                Text(L("모니터 고유 감마(TRC): \(String(format: "%.3f", t.nativeGamma))   ·   현재 선택된 프로파일: \(t.currentName)",
+                       "Native gamma (TRC): \(String(format: "%.3f", t.nativeGamma))   ·   Current profile: \(t.currentName)"))
                 switch t.matchOK {
                 case .some(true):
-                    Text("✅ 현재 선택된 프로파일과 기준의 모니터 특성이 같아요. 미리보기 = 저장 결과")
+                    Text(L("✅ 현재 선택된 프로파일과 기준의 모니터 특성이 같아요. 미리보기 = 저장 결과",
+                           "✅ The current profile's monitor characteristics match the base. Preview = saved result"))
                         .foregroundColor(.green)
                 case .some(false):
-                    Text("⚠️ 현재 선택된 프로파일의 특성(원색·화이트·TRC)이 기준과 달라요. 색 관리 앱의 미리보기가 저장 결과와 다르게 보일 수 있어요. 시스템 설정에서 공장 프로파일(또는 이 앱으로 만든 Custom)을 선택한 뒤 '다시 확인'을 누르세요.")
+                    Text(L("⚠️ 현재 선택된 프로파일의 특성(원색·화이트·TRC)이 기준과 달라요. 색 관리 앱의 미리보기가 저장 결과와 다르게 보일 수 있어요. 시스템 설정에서 공장 프로파일(또는 이 앱으로 만든 Custom)을 선택한 뒤 '다시 확인'을 누르세요.",
+                           "⚠️ The current profile's characteristics (primaries/white/TRC) differ from the base. A color-managed app's preview may not match the saved result. Select the factory profile (or a Custom one made by this app) in System Settings, then press 'Recheck'."))
                         .foregroundColor(.orange)
                 case .none:
-                    Text("현재 선택된 프로파일을 확인할 수 없어요.").foregroundColor(.secondary)
+                    Text(L("현재 선택된 프로파일을 확인할 수 없어요.", "Can't verify the current profile.")).foregroundColor(.secondary)
                 }
             }
             .font(.callout)
             .foregroundColor(.secondary)
 
-            GroupBox("전체") {
-                ParamRow(title: "목표 감마", value: $t.target, range: 1.2...2.8, step: 0.01 * k, digits: 2)
+            GroupBox(L("전체", "Overall")) {
+                ParamRow(title: L("목표 감마", "Target Gamma"), value: $t.target, range: 1.2...2.8, step: 0.01 * k, digits: 2)
             }
-            GroupBox("게인 (밝은 영역 · 최대 출력)") {
+            GroupBox(L("게인 (밝은 영역 · 최대 출력)", "Gain (highlights · max output)")) {
                 VStack {
-                    ParamRow(title: "R 게인", value: $t.gain[0], range: 0.70...1.0, step: 0.002 * k, digits: 3)
-                    ParamRow(title: "G 게인", value: $t.gain[1], range: 0.70...1.0, step: 0.002 * k, digits: 3)
-                    ParamRow(title: "B 게인", value: $t.gain[2], range: 0.70...1.0, step: 0.002 * k, digits: 3)
+                    ParamRow(title: L("R 게인", "R Gain"), value: $t.gain[0], range: 0.70...1.0, step: 0.002 * k, digits: 3)
+                    ParamRow(title: L("G 게인", "G Gain"), value: $t.gain[1], range: 0.70...1.0, step: 0.002 * k, digits: 3)
+                    ParamRow(title: L("B 게인", "B Gain"), value: $t.gain[2], range: 0.70...1.0, step: 0.002 * k, digits: 3)
                 }
             }
-            GroupBox("채널 감마 보정 (1보다 크면 그 채널이 중간·어두운 톤에서 더 빠짐, 흰색·검정은 그대로)") {
+            GroupBox(L("채널 감마 보정 (1보다 크면 그 채널이 중간·어두운 톤에서 더 빠짐, 흰색·검정은 그대로)",
+                       "Channel Gamma (above 1 pulls that channel down more in mids/shadows; white/black stay fixed)")) {
                 VStack {
-                    ParamRow(title: "R 채널 감마", value: $t.shadow[0], range: 0.80...1.40, step: 0.01 * k, digits: 2)
-                    ParamRow(title: "G 채널 감마", value: $t.shadow[1], range: 0.80...1.40, step: 0.01 * k, digits: 2)
-                    ParamRow(title: "B 채널 감마", value: $t.shadow[2], range: 0.80...1.40, step: 0.01 * k, digits: 2)
+                    ParamRow(title: L("R 채널 감마", "R Channel Gamma"), value: $t.shadow[0], range: 0.80...1.40, step: 0.01 * k, digits: 2)
+                    ParamRow(title: L("G 채널 감마", "G Channel Gamma"), value: $t.shadow[1], range: 0.80...1.40, step: 0.01 * k, digits: 2)
+                    ParamRow(title: L("B 채널 감마", "B Channel Gamma"), value: $t.shadow[2], range: 0.80...1.40, step: 0.01 * k, digits: 2)
                 }
             }
 
             HStack {
-                Toggle("큰 단위로 조절 (×5)", isOn: $coarse)
+                Toggle(L("큰 단위로 조절 (×5)", "Coarse step (×5)"), isOn: $coarse)
                 Spacer()
-                Toggle("원본 보기 (비교)", isOn: $t.bypass)
-                Button("초기화") { t.reset() }
-                Button("Custom G1.8 값 불러오기") { t.presetCustomG18() }
+                Toggle(L("원본 보기 (비교)", "Show original (compare)"), isOn: $t.bypass)
+                Button(L("초기화", "Reset")) { t.reset() }
+                Button(L("Custom G1.8 값 불러오기", "Load Custom G1.8 preset")) { t.presetCustomG18() }
             }
 
             PatternView()
@@ -512,12 +526,12 @@ struct ContentView: View {
             Text(t.summary).font(.system(.callout, design: .monospaced)).textSelection(.enabled)
 
             HStack {
-                Text("저장 이름")
-                TextField("프로파일 이름", text: $t.outName).frame(maxWidth: 320)
-                Button("저장만") { t.save() }
-                Button("저장하고 종료") { t.saveAndQuit() }.keyboardShortcut("s")
+                Text(L("저장 이름", "Save as"))
+                TextField(L("프로파일 이름", "Profile name"), text: $t.outName).frame(maxWidth: 320)
+                Button(L("저장만", "Save Only")) { t.save() }
+                Button(L("저장하고 종료", "Save & Quit")) { t.saveAndQuit() }.keyboardShortcut("s")
                 Spacer()
-                Link("☕ 후원하기", destination: URL(string: "https://buymeacoffee.com/wooooooooook")!)
+                Link(L("☕ 후원하기", "☕ Support"), destination: URL(string: "https://buymeacoffee.com/wooooooooook")!)
                     .font(.callout)
             }
             Text(t.status).font(.callout).foregroundColor(.secondary).textSelection(.enabled)
